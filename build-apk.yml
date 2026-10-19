@@ -1,0 +1,402 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (example: 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout files
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Prepare Android project
+        run: |
+          set -e
+          sudo apt-get install -y imagemagick >/dev/null
+          J=android/app/src/main/java/io/github/baserr4bit/invoice
+          R=android/app/src/main/res
+          mkdir -p "$J" "$R/values" "$R/xml"
+          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            name="${d%%:*}"; size="${d##*:}"
+            mkdir -p "$R/mipmap-$name"
+            convert icon-512.png -resize "${size}x${size}" "$R/mipmap-$name/ic_launcher.png"
+          done
+          cat > android/settings.gradle <<'GRADLEEOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = 'SmartInvoiceMaker'
+          include ':app'
+          GRADLEEOF
+          cat > android/build.gradle <<'GRADLEEOF'
+          plugins {
+              id 'com.android.application' version '8.5.2' apply false
+          }
+          GRADLEEOF
+          cat > android/gradle.properties <<'GRADLEEOF'
+          android.useAndroidX=true
+          org.gradle.jvmargs=-Xmx2g
+          GRADLEEOF
+          cat > android/app/build.gradle <<'GRADLEEOF'
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'io.github.baserr4bit.invoice'
+              compileSdk 34
+              defaultConfig {
+                  applicationId 'io.github.baserr4bit.invoice'
+                  minSdk 29
+                  targetSdk 34
+                  versionCode Integer.parseInt(String.valueOf(project.findProperty('appVersionCode') ?: '1'))
+                  versionName String.valueOf(project.findProperty('appVersionName') ?: '1.0.0')
+              }
+              signingConfigs {
+                  release {
+                      storeFile file('release.keystore')
+                      storePassword 'invoice2026'
+                      keyAlias 'key0'
+                      keyPassword 'invoice2026'
+                  }
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          dependencies {
+              implementation 'androidx.core:core:1.13.1'
+          }
+          GRADLEEOF
+          cat > android/app/src/main/AndroidManifest.xml <<'XMLEOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <application
+                  android:label="@string/app_name"
+                  android:icon="@mipmap/ic_launcher"
+                  android:allowBackup="true"
+                  android:theme="@style/AppTheme">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|uiMode"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+                  <provider
+                      android:name="androidx.core.content.FileProvider"
+                      android:authorities="${applicationId}.fileprovider"
+                      android:exported="false"
+                      android:grantUriPermissions="true">
+                      <meta-data
+                          android:name="android.support.FILE_PROVIDER_PATHS"
+                          android:resource="@xml/file_paths" />
+                  </provider>
+              </application>
+          </manifest>
+          XMLEOF
+          cat > $J/MainActivity.java <<'JAVAEOF'
+          package io.github.baserr4bit.invoice;
+
+          import android.app.Activity;
+          import android.content.ClipData;
+          import android.content.ContentValues;
+          import android.content.Intent;
+          import android.net.Uri;
+          import android.os.Bundle;
+          import android.os.Environment;
+          import android.provider.MediaStore;
+          import android.util.Base64;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.ValueCallback;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import androidx.core.content.FileProvider;
+          import java.io.File;
+          import java.io.FileOutputStream;
+          import java.io.OutputStream;
+
+          public class MainActivity extends Activity {
+              private static final String SITE = "https://baserr4-bit.github.io/smart-invoice-maker/";
+              private static final String HOST = "baserr4-bit.github.io";
+              private static final int REQ_FILE = 1;
+              private WebView web;
+              private ValueCallback<Uri[]> fileCb;
+              private Uri camUri;
+
+              @Override
+              protected void onCreate(Bundle saved) {
+                  super.onCreate(saved);
+                  web = new WebView(this);
+                  setContentView(web);
+                  WebSettings s = web.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  s.setDatabaseEnabled(true);
+                  s.setAllowFileAccess(false);
+                  s.setSupportZoom(false);
+                  s.setTextZoom(100);
+                  s.setCacheMode(WebSettings.LOAD_DEFAULT);
+                  web.addJavascriptInterface(new Bridge(), "NativeApp");
+                  web.setWebViewClient(new WebViewClient() {
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
+                          return handleUrl(req.getUrl());
+                      }
+                  });
+                  web.setWebChromeClient(new WebChromeClient() {
+                      @Override
+                      public boolean onShowFileChooser(WebView w, ValueCallback<Uri[]> cb, WebChromeClient.FileChooserParams params) {
+                          return openChooser(cb, params);
+                      }
+                  });
+                  if (saved != null) {
+                      web.restoreState(saved);
+                  } else {
+                      web.loadUrl(SITE);
+                  }
+              }
+
+              private boolean handleUrl(Uri u) {
+                  String scheme = u.getScheme() == null ? "" : u.getScheme();
+                  String host = u.getHost() == null ? "" : u.getHost();
+                  if (("https".equals(scheme) || "http".equals(scheme)) && HOST.equals(host)) {
+                      return false;
+                  }
+                  if ("intent".equals(scheme)) {
+                      String s = u.toString();
+                      try {
+                          Intent it = Intent.parseUri(s, Intent.URI_INTENT_SCHEME);
+                          it.addCategory(Intent.CATEGORY_BROWSABLE);
+                          it.setComponent(null);
+                          it.setSelector(null);
+                          startActivity(it);
+                      } catch (Exception e) {
+                          try {
+                              Intent it = Intent.parseUri(s, Intent.URI_INTENT_SCHEME);
+                              String fb = it.getStringExtra("browser_fallback_url");
+                              if (fb != null) {
+                                  startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(fb)));
+                              }
+                          } catch (Exception ignored) {
+                          }
+                      }
+                      return true;
+                  }
+                  try {
+                      startActivity(new Intent(Intent.ACTION_VIEW, u));
+                  } catch (Exception ignored) {
+                  }
+                  return true;
+              }
+
+              private boolean openChooser(ValueCallback<Uri[]> cb, WebChromeClient.FileChooserParams params) {
+                  if (fileCb != null) {
+                      fileCb.onReceiveValue(null);
+                  }
+                  fileCb = cb;
+                  camUri = null;
+                  try {
+                      Intent intent;
+                      if (params.isCaptureEnabled()) {
+                          File dir = new File(getCacheDir(), "shared");
+                          dir.mkdirs();
+                          File f = File.createTempFile("cam", ".jpg", dir);
+                          camUri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", f);
+                          intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                          intent.putExtra(MediaStore.EXTRA_OUTPUT, camUri);
+                          intent.setClipData(ClipData.newRawUri("", camUri));
+                          intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                      } else {
+                          intent = params.createIntent();
+                      }
+                      startActivityForResult(intent, REQ_FILE);
+                      return true;
+                  } catch (Exception e) {
+                      fileCb = null;
+                      camUri = null;
+                      cb.onReceiveValue(null);
+                      return true;
+                  }
+              }
+
+              @Override
+              protected void onActivityResult(int req, int res, Intent data) {
+                  if (req == REQ_FILE && fileCb != null) {
+                      Uri[] r = null;
+                      if (res == RESULT_OK) {
+                          if (camUri != null) {
+                              r = new Uri[]{camUri};
+                          } else {
+                              r = WebChromeClient.FileChooserParams.parseResult(res, data);
+                          }
+                      }
+                      fileCb.onReceiveValue(r);
+                      fileCb = null;
+                      camUri = null;
+                      return;
+                  }
+                  super.onActivityResult(req, res, data);
+              }
+
+              @Override
+              protected void onSaveInstanceState(Bundle out) {
+                  super.onSaveInstanceState(out);
+                  web.saveState(out);
+              }
+
+              @Override
+              public void onBackPressed() {
+                  if (web.canGoBack()) {
+                      web.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+
+              private class Bridge {
+                  @JavascriptInterface
+                  public boolean shareFile(String b64, String name, String mime, String text) {
+                      try {
+                          byte[] data = Base64.decode(b64, Base64.DEFAULT);
+                          File dir = new File(getCacheDir(), "shared");
+                          dir.mkdirs();
+                          File f = new File(dir, name.replaceAll("[^A-Za-z0-9._-]", "_"));
+                          try (FileOutputStream o = new FileOutputStream(f)) {
+                              o.write(data);
+                          }
+                          final Uri u = FileProvider.getUriForFile(MainActivity.this, getPackageName() + ".fileprovider", f);
+                          Intent i = new Intent(Intent.ACTION_SEND);
+                          i.setType(mime == null || mime.isEmpty() ? "*/*" : mime);
+                          i.putExtra(Intent.EXTRA_STREAM, u);
+                          if (text != null && !text.isEmpty()) {
+                              i.putExtra(Intent.EXTRA_TEXT, text);
+                          }
+                          i.setClipData(ClipData.newRawUri("", u));
+                          i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                          final Intent chooser = Intent.createChooser(i, null);
+                          runOnUiThread(new Runnable() {
+                              @Override
+                              public void run() {
+                                  startActivity(chooser);
+                              }
+                          });
+                          return true;
+                      } catch (Exception e) {
+                          return false;
+                      }
+                  }
+
+                  private boolean store(Uri collection, String name, String mime, String relPath, String b64) {
+                      try {
+                          byte[] data = Base64.decode(b64, Base64.DEFAULT);
+                          ContentValues v = new ContentValues();
+                          v.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
+                          v.put(MediaStore.MediaColumns.MIME_TYPE, mime);
+                          v.put(MediaStore.MediaColumns.RELATIVE_PATH, relPath);
+                          Uri u = getContentResolver().insert(collection, v);
+                          if (u == null) {
+                              return false;
+                          }
+                          try (OutputStream o = getContentResolver().openOutputStream(u)) {
+                              o.write(data);
+                          }
+                          return true;
+                      } catch (Exception e) {
+                          return false;
+                      }
+                  }
+
+                  @JavascriptInterface
+                  public boolean saveImage(String b64, String name) {
+                      return store(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, name, "image/png",
+                              Environment.DIRECTORY_PICTURES + "/SmartInvoice", b64);
+                  }
+
+                  @JavascriptInterface
+                  public boolean saveFile(String b64, String name, String mime) {
+                      return store(MediaStore.Downloads.EXTERNAL_CONTENT_URI, name,
+                              mime == null || mime.isEmpty() ? "application/octet-stream" : mime,
+                              Environment.DIRECTORY_DOWNLOADS, b64);
+                  }
+              }
+          }
+          JAVAEOF
+          cat > $R/values/strings.xml <<'XMLEOF'
+          <resources>
+              <string name="app_name">فاکتور ساز هوشمند</string>
+          </resources>
+          XMLEOF
+          cat > $R/values/styles.xml <<'XMLEOF'
+          <resources>
+              <style name="AppTheme" parent="android:Theme.DeviceDefault.Light.NoActionBar">
+                  <item name="android:statusBarColor">#4d6b3a</item>
+                  <item name="android:windowBackground">#eef0e4</item>
+              </style>
+          </resources>
+          XMLEOF
+          cat > $R/xml/file_paths.xml <<'XMLEOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <paths>
+              <cache-path name="shared" path="shared/" />
+          </paths>
+          XMLEOF
+          keytool -genkeypair -keystore android/app/release.keystore -alias key0 -keyalg RSA -keysize 2048 -validity 10000 -storepass invoice2026 -keypass invoice2026 -dname "CN=Smart Invoice Maker, O=baserr4-bit, C=IR"
+
+      - name: Build APK
+        run: gradle -p android assembleRelease -PappVersionName=${{ inputs.version }} -PappVersionCode=${{ github.run_number }}
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk smart-invoice-maker.apk
+
+      - name: Save APK as downloadable file in this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-invoice-maker-apk
+          path: smart-invoice-maker.apk
+
+      - name: Publish APK in Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          name: Smart Invoice Maker ${{ inputs.version }}
+          files: smart-invoice-maker.apk
