@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>فاکتور ساز هوشمند | Download</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<meta name="theme-color" content="#4d6b3a">
+<style>
+:root{--bg:#eef0e4;--card:#fbfaf3;--ink:#2b3322;--mut:#6b7560;--pri:#4d6b3a;--gold:#c8952e;--line:#d5d9c3;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root{--bg:#171c14;--card:#222a1d;--ink:#eef1e4;--mut:#a3ac96;--pri:#8fb36f;--gold:#e0b04e;--line:#38432f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Vazirmatn,Tahoma,'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;font-size:16px;line-height:1.9}
+main{max-width:560px;margin:auto;padding:16px}
+.top{display:flex;justify-content:flex-end}select{padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit;font-size:14px}
+.hero{text-align:center;margin:8px 0 18px}.hero img{width:112px;height:112px}.hero h1{margin:6px 0 2px;font-size:26px}.hero p{margin:0;color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.card.rec{border:2px solid var(--gold)}.badge{display:inline-block;background:var(--gold);color:#fff;border-radius:20px;padding:0 10px;font-size:12px;font-weight:700;margin-bottom:6px}
+.card h2{margin:0 0 4px;font-size:18px}.card p{margin:4px 0 10px;color:var(--mut);font-size:14px}
+a.btn{display:block;text-align:center;background:var(--pri);color:#fff;text-decoration:none;font-weight:700;padding:13px;border-radius:12px}
+a.btn.apk{background:#2b3322}@media(prefers-color-scheme:dark){a.btn{color:#10150d}a.btn.apk{background:#e0b04e}}
+details{margin-top:10px}summary{cursor:pointer;color:var(--pri);font-weight:700}ol{margin:6px 0 0;padding-inline-start:22px;font-size:15px}
+.ios{display:none}.small{color:var(--mut);font-size:13px;text-align:center;margin-top:14px}
+</style></head><body><main>
+<div class="top"><select id="lg" onchange="setL(this.value)"><option value="fa">فارسی</option><option value="en">English</option><option value="ar">العربية</option><option value="ur">اردو</option><option value="zh">中文</option></select></div>
+<div class="hero"><img src="icon.svg" alt=""><h1 data-k="title"></h1><p data-k="sub"></p></div>
+<div class="card rec"><span class="badge" data-k="best"></span><h2 data-k="h1"></h2><p data-k="d1"></p>
+<a class="btn" href="https://baserr4-bit.github.io/smart-invoice-maker/" data-k="b1"></a>
+<details><summary data-k="how"></summary><ol id="s1"></ol></details></div>
+<div class="card" id="apkc"><h2 data-k="h2"></h2><p data-k="d2"></p>
+<a class="btn apk" href="https://github.com/baserr4-bit/smart-invoice-maker/releases/latest" data-k="b2"></a>
+<details><summary data-k="how"></summary><ol id="s2"></ol></details></div>
+<div class="card ios" id="iosc"><h2 data-k="h3"></h2><p data-k="d3" style="margin-bottom:0"></p></div>
+<p class="small" data-k="priv"></p>
+</main>
+<script>
+const T={
+fa:{title:'فاکتور ساز هوشمند',sub:'ساخت و ارسال فاکتور فروش با گوشی، مدیریت کالا و مشتری، بدون ثبت‌نام',best:'پیشنهادی',h1:'نصب سریع از Chrome',d1:'بدون دانلود فایل. همین حالا نصب می‌شود و همیشه آخرین نسخه را دارید.',b1:'نصب از Chrome',how:'مراحل نصب',h2:'دانلود فایل APK (اندروید)',d2:'اگر ترجیح می‌دهید فایل نصب را دانلود کنید.',b2:'دانلود APK',h3:'آیفون',d3:'فایل APK روی آیفون نصب نمی‌شود. لینک را در Safari باز کنید، دکمهٔ اشتراک (مربع با فلش) را بزنید و Add to Home Screen را انتخاب کنید.',priv:'اطلاعات شما فقط روی گوشی خودتان ذخیره می‌شود.',
+s1:['لینک را فقط در Chrome باز کنید (نه داخل مرورگر ایتا یا تلگرام).','سه نقطهٔ بالای Chrome را بزنید.','Add to Home screen یا Install app را بزنید و تأیید کنید.','آیکون برنامه روی صفحهٔ اصلی گوشی است.'],
+s2:['روی «دانلود APK» بزنید و فایل smart-invoice-maker.apk را دانلود کنید.','فایل را از پوشهٔ Downloads باز کنید.','اگر گوشی پرسید، نصب از این منبع را اجازه دهید.','Install را بزنید.','اگر گوشی هشدار امنیتی داد، «جزئیات بیشتر» و سپس «در هر حال نصب شود» را بزنید.']},
+en:{title:'Smart Invoice Maker',sub:'Create and share sales invoices from your phone, manage products and customers, no sign-up',best:'Recommended',h1:'Quick install from Chrome',d1:'No file to download. Installs in seconds and always stays up to date.',b1:'Install from Chrome',how:'How to install',h2:'Download the APK (Android)',d2:'If you prefer a normal installable file.',b2:'Download APK',h3:'iPhone',d3:'The APK cannot be installed on iPhone. Open the link in Safari, tap the Share button, then choose Add to Home Screen.',priv:'Your data is stored only on your own phone.',
+s1:['Open the link in Chrome only (not inside Eitaa or Telegram in-app browsers).','Tap the three dots at the top of Chrome.','Tap Add to Home screen or Install app, then confirm.','The app icon is now on your home screen.'],
+s2:['Tap Download APK and save smart-invoice-maker.apk.','Open the file from your Downloads folder.','If asked, allow installing from this source.','Tap Install.','If a security warning appears, tap "More details" then "Install anyway".']},
+ar:{title:'منشئ الفواتير الذكي',sub:'أنشئ وأرسل فواتير البيع من هاتفك وأدر المنتجات والعملاء بدون تسجيل',best:'موصى به',h1:'تثبيت سريع من Chrome',d1:'بدون تنزيل ملف. يُثبَّت فوراً ويبقى محدّثاً دائماً.',b1:'التثبيت من Chrome',how:'خطوات التثبيت',h2:'تنزيل ملف APK (أندرويد)',d2:'إذا كنت تفضّل ملف تثبيت عادياً.',b2:'تنزيل APK',h3:'آيفون',d3:'لا يمكن تثبيت APK على آيفون. افتح الرابط في Safari واضغط زر المشاركة ثم اختر Add to Home Screen.',priv:'بياناتك محفوظة على هاتفك فقط.',
+s1:['افتح الرابط في Chrome فقط (وليس داخل متصفح إيتا أو تلغرام).','اضغط على النقاط الثلاث أعلى Chrome.','اضغط Add to Home screen أو Install app ثم أكّد.','أصبحت أيقونة التطبيق على الشاشة الرئيسية.'],
+s2:['اضغط تنزيل APK واحفظ الملف smart-invoice-maker.apk.','افتح الملف من مجلد Downloads.','إذا سُئلت، اسمح بالتثبيت من هذا المصدر.','اضغط Install.','إذا ظهر تحذير أمني اضغط «مزيد من التفاصيل» ثم «التثبيت على أي حال».']},
+ur:{title:'سمارٹ انوائس میکر',sub:'فون سے سیلز انوائس بنائیں اور بھیجیں، اشیاء اور گاہک سنبھالیں، رجسٹریشن کے بغیر',best:'تجویز کردہ',h1:'Chrome سے فوری انسٹال',d1:'فائل ڈاؤن لوڈ کیے بغیر۔ فوراً انسٹال ہوتی ہے اور ہمیشہ تازہ رہتی ہے۔',b1:'Chrome سے انسٹال کریں',how:'انسٹال کا طریقہ',h2:'APK فائل ڈاؤن لوڈ کریں (اینڈرائیڈ)',d2:'اگر آپ عام انسٹال فائل چاہتے ہیں۔',b2:'APK ڈاؤن لوڈ کریں',h3:'آئی فون',d3:'APK آئی فون پر انسٹال نہیں ہوتی۔ لنک Safari میں کھولیں، شیئر بٹن دبائیں اور Add to Home Screen منتخب کریں۔',priv:'آپ کا ڈیٹا صرف آپ کے اپنے فون میں محفوظ رہتا ہے۔',
+s1:['لنک صرف Chrome میں کھولیں (ایتا یا ٹیلیگرام کے اندر نہیں)۔','Chrome کے اوپر تین نقطے دبائیں۔','Add to Home screen یا Install app دبائیں اور تصدیق کریں۔','ایپ کا آئیکن ہوم اسکرین پر آ گیا۔'],
+s2:['APK ڈاؤن لوڈ دبائیں اور smart-invoice-maker.apk محفوظ کریں۔','فائل کو Downloads فولڈر سے کھولیں۔','اگر پوچھا جائے تو اس ذریعے سے انسٹال کی اجازت دیں۔','Install دبائیں۔','اگر سیکیورٹی وارننگ آئے تو «مزید تفصیلات» پھر «بہرحال انسٹال کریں» دبائیں۔']},
+zh:{title:'智能发票生成器',sub:'用手机创建并发送销售发票，管理商品和客户，无需注册',best:'推荐',h1:'通过 Chrome 快速安装',d1:'无需下载文件，几秒钟即可安装，并始终保持最新版本。',b1:'从 Chrome 安装',how:'安装步骤',h2:'下载 APK 文件（安卓）',d2:'如果您更喜欢普通的安装文件。',b2:'下载 APK',h3:'iPhone',d3:'APK 无法安装在 iPhone 上。请在 Safari 中打开链接，点击分享按钮，然后选择“添加到主屏幕”。',priv:'您的数据只保存在您自己的手机上。',
+s1:['只在 Chrome 中打开链接（不要在 Eitaa 或 Telegram 内置浏览器中打开）。','点击 Chrome 顶部的三个点。','点击 Add to Home screen 或 Install app 并确认。','应用图标现在在主屏幕上。'],
+s2:['点击“下载 APK”并保存 smart-invoice-maker.apk。','在 Downloads 文件夹中打开文件。','如果提示，请允许从此来源安装。','点击 Install。','如果出现安全警告，请点击“更多详情”，然后点击“仍然安装”。']}};
+function setL(l){const t=T[l]||T.fa;document.documentElement.lang=l;document.documentElement.dir=['fa','ar','ur'].includes(l)?'rtl':'ltr';
+document.querySelectorAll('[data-k]').forEach(e=>e.textContent=t[e.dataset.k]);
+['s1','s2'].forEach(k=>{document.getElementById(k).innerHTML=t[k].map(x=>'<li>'+x+'</li>').join('')});
+document.getElementById('lg').value=l;try{localStorage.setItem('dl-lang',l)}catch(e){}}
+let L='fa';try{L=localStorage.getItem('dl-lang')||''}catch(e){}
+if(!T[L]){const n=(navigator.language||'fa').slice(0,2);L=T[n]?n:'fa'}
+const ios=/iPhone|iPad|iPod/i.test(navigator.userAgent);
+if(ios){document.getElementById('apkc').style.display='none';document.getElementById('iosc').style.display='block'}
+setL(L);
+</script></body></html>
