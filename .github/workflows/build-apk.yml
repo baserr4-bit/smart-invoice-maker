@@ -107,6 +107,7 @@ jobs:
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
               <application
                   android:label="@string/app_name"
                   android:icon="@mipmap/ic_launcher"
@@ -136,15 +137,17 @@ jobs:
           XMLEOF
           cat > $J/MainActivity.java <<'JAVAEOF'
           package io.github.baserr4bit.invoice;
-
+          
           import android.app.Activity;
           import android.content.ClipData;
           import android.content.ContentValues;
           import android.content.Intent;
           import android.net.Uri;
+          import android.os.Build;
           import android.os.Bundle;
           import android.os.Environment;
           import android.provider.MediaStore;
+          import android.provider.Settings;
           import android.util.Base64;
           import android.webkit.JavascriptInterface;
           import android.webkit.ValueCallback;
@@ -154,10 +157,17 @@ jobs:
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
           import androidx.core.content.FileProvider;
+          import java.io.ByteArrayOutputStream;
           import java.io.File;
+          import java.io.FileInputStream;
           import java.io.FileOutputStream;
           import java.io.OutputStream;
-
+          import java.util.ArrayList;
+          import java.util.Collections;
+          import java.util.Comparator;
+          import org.json.JSONArray;
+          import org.json.JSONObject;
+          
           public class MainActivity extends Activity {
               private static final String SITE = "https://baserr4-bit.github.io/smart-invoice-maker/";
               private static final String HOST = "baserr4-bit.github.io";
@@ -165,7 +175,7 @@ jobs:
               private WebView web;
               private ValueCallback<Uri[]> fileCb;
               private Uri camUri;
-
+          
               @Override
               protected void onCreate(Bundle saved) {
                   super.onCreate(saved);
@@ -198,7 +208,7 @@ jobs:
                       web.loadUrl(SITE);
                   }
               }
-
+          
               private boolean handleUrl(Uri u) {
                   String scheme = u.getScheme() == null ? "" : u.getScheme();
                   String host = u.getHost() == null ? "" : u.getHost();
@@ -231,7 +241,7 @@ jobs:
                   }
                   return true;
               }
-
+          
               private boolean openChooser(ValueCallback<Uri[]> cb, WebChromeClient.FileChooserParams params) {
                   if (fileCb != null) {
                       fileCb.onReceiveValue(null);
@@ -261,7 +271,7 @@ jobs:
                       return true;
                   }
               }
-
+          
               @Override
               protected void onActivityResult(int req, int res, Intent data) {
                   if (req == REQ_FILE && fileCb != null) {
@@ -280,13 +290,13 @@ jobs:
                   }
                   super.onActivityResult(req, res, data);
               }
-
+          
               @Override
               protected void onSaveInstanceState(Bundle out) {
                   super.onSaveInstanceState(out);
                   web.saveState(out);
               }
-
+          
               @Override
               public void onBackPressed() {
                   if (web.canGoBack()) {
@@ -295,7 +305,7 @@ jobs:
                       super.onBackPressed();
                   }
               }
-
+          
               private class Bridge {
                   @JavascriptInterface
                   public boolean shareFile(String b64, String name, String mime, String text) {
@@ -328,7 +338,7 @@ jobs:
                           return false;
                       }
                   }
-
+          
                   private boolean store(Uri collection, String name, String mime, String relPath, String b64) {
                       try {
                           byte[] data = Base64.decode(b64, Base64.DEFAULT);
@@ -348,18 +358,119 @@ jobs:
                           return false;
                       }
                   }
-
+          
                   @JavascriptInterface
                   public boolean saveImage(String b64, String name) {
                       return store(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, name, "image/png",
                               Environment.DIRECTORY_PICTURES + "/SmartInvoice", b64);
                   }
-
+          
                   @JavascriptInterface
                   public boolean saveFile(String b64, String name, String mime) {
                       return store(MediaStore.Downloads.EXTERNAL_CONTENT_URI, name,
                               mime == null || mime.isEmpty() ? "application/octet-stream" : mime,
                               Environment.DIRECTORY_DOWNLOADS, b64);
+                  }
+          
+                  @JavascriptInterface
+                  public boolean hasAllFilesAccess() {
+                      return Build.VERSION.SDK_INT >= 30 && Environment.isExternalStorageManager();
+                  }
+          
+                  @JavascriptInterface
+                  public void requestAllFilesAccess() {
+                      if (Build.VERSION.SDK_INT < 30) {
+                          return;
+                      }
+                      runOnUiThread(new Runnable() {
+                          @Override
+                          public void run() {
+                              try {
+                                  Intent i = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                          Uri.parse("package:" + getPackageName()));
+                                  startActivity(i);
+                              } catch (Exception e) {
+                                  try {
+                                      startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
+                                  } catch (Exception ignored) {
+                                  }
+                              }
+                          }
+                      });
+                  }
+          
+                  private void scan(File dir, int depth, ArrayList<File> out) {
+                      if (depth > 6 || out.size() > 300) {
+                          return;
+                      }
+                      File[] list = dir.listFiles();
+                      if (list == null) {
+                          return;
+                      }
+                      for (File f : list) {
+                          String n = f.getName();
+                          if (f.isDirectory()) {
+                              if (n.startsWith(".") || n.equals("Android")) {
+                                  continue;
+                              }
+                              scan(f, depth + 1, out);
+                          } else if (n.toLowerCase().endsWith(".backup") && f.length() > 0 && f.length() < 20000000L) {
+                              out.add(f);
+                          }
+                      }
+                  }
+          
+                  @JavascriptInterface
+                  public String listBackups() {
+                      if (Build.VERSION.SDK_INT < 30) {
+                          return "UNSUPPORTED";
+                      }
+                      if (!Environment.isExternalStorageManager()) {
+                          return "NOPERM";
+                      }
+                      try {
+                          ArrayList<File> found = new ArrayList<File>();
+                          scan(Environment.getExternalStorageDirectory(), 0, found);
+                          Collections.sort(found, new Comparator<File>() {
+                              @Override
+                              public int compare(File a, File b) {
+                                  return Long.compare(b.lastModified(), a.lastModified());
+                              }
+                          });
+                          JSONArray arr = new JSONArray();
+                          for (int k = 0; k < found.size() && k < 15; k++) {
+                              JSONObject o = new JSONObject();
+                              o.put("path", found.get(k).getAbsolutePath());
+                              o.put("name", found.get(k).getName());
+                              arr.put(o);
+                          }
+                          return arr.toString();
+                      } catch (Exception e) {
+                          return "[]";
+                      }
+                  }
+          
+                  @JavascriptInterface
+                  public String readFile(String path) {
+                      try {
+                          File f = new File(path);
+                          String root = Environment.getExternalStorageDirectory().getCanonicalPath();
+                          if (!f.getName().toLowerCase().endsWith(".backup") || f.length() > 20000000L
+                                  || !f.getCanonicalPath().startsWith(root)) {
+                              return "";
+                          }
+                          FileInputStream in = new FileInputStream(f);
+                          ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                          byte[] buf = new byte[8192];
+                          int n;
+                          while ((n = in.read(buf)) > 0) {
+                              bo.write(buf, 0, n);
+                          }
+                          in.close();
+                          return new String(bo.toByteArray(), "UTF-8");
+                      } catch (Exception e) {
+                          return "";
+                      }
                   }
               }
           }
